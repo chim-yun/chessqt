@@ -1,10 +1,12 @@
 #include "mainwindow.h"
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QPushButton>
 #include <QMessageBox>
 #include <QInputDialog>
 #include <QGraphicsRectItem>
 #include <QPixmap>
+#include <QLabel>
 #include <QRandomGenerator>
 #include <QNetworkRequest>
 #include <QUrlQuery>
@@ -19,6 +21,11 @@ MainWindow::MainWindow(const QString &user, QWidget *parent)
     m_scene = new QGraphicsScene(this);
     m_view = new BoardView(m_scene, &m_board, this);
     m_scene->setSceneRect(0,0,400,400);
+
+    m_whiteLabel = new QLabel(this);
+    m_blackLabel = new QLabel(this);
+    m_whiteLabel->setVisible(false);
+    m_blackLabel->setVisible(false);
 
     showMenu();
 }
@@ -53,8 +60,23 @@ void MainWindow::startGame()
     m_highlight.clear();
 
     m_scene->clear();
-    setCentralWidget(m_view);
+
+    auto *central = new QWidget(this);
+    auto *layout = new QVBoxLayout(central);
+    layout->setContentsMargins(0,0,0,0);
+    layout->addWidget(m_view);
+    auto *timerLayout = new QHBoxLayout();
+    timerLayout->addWidget(m_whiteLabel);
+    timerLayout->addStretch();
+    timerLayout->addWidget(m_blackLabel);
+    layout->addLayout(timerLayout);
+    setCentralWidget(central);
+    m_view->show();
     redrawBoard();
+
+    m_whiteLabel->setVisible(true);
+    m_blackLabel->setVisible(true);
+    updateTimerDisplay();
 
     m_timer.start(1000);
     connect(&m_timer, &QTimer::timeout, this, &MainWindow::updateTimer);
@@ -74,6 +96,7 @@ void MainWindow::updateTimer()
         --m_whiteTime;
     else
         --m_blackTime;
+    updateTimerDisplay();
     if (m_whiteTime<=0 || m_blackTime<=0) {
         QMessageBox::information(this, "Time", m_whiteTime<=0?"Black wins":"White wins");
         endGame();
@@ -158,6 +181,7 @@ void MainWindow::handleAiReply(QNetworkReply *reply)
         m_board.move(from,to);
         m_view->clearSelection();
         redrawBoard();
+        checkGameOver();
     }
 }
 
@@ -177,6 +201,13 @@ void MainWindow::checkGameOver()
 
 void MainWindow::showMenu()
 {
+    // keep widgets alive when replacing the central widget
+    m_view->setParent(this);
+    m_whiteLabel->setParent(this);
+    m_blackLabel->setParent(this);
+    m_view->hide();
+    m_whiteLabel->setVisible(false);
+    m_blackLabel->setVisible(false);
     auto *central = new QWidget(this);
     auto *layout = new QVBoxLayout(central);
     auto *playOffline = new QPushButton("Offline 2 Players", this);
@@ -197,5 +228,14 @@ void MainWindow::endGame()
     disconnect(m_view, &BoardView::highlightChanged, this, &MainWindow::setHighlight);
     m_highlight.clear();
     m_mode = Off;
+    m_whiteLabel->setVisible(false);
+    m_blackLabel->setVisible(false);
     showMenu();
+}
+
+void MainWindow::updateTimerDisplay()
+{
+    auto format=[&](int t){ return QString("%1:%2").arg(t/60,2,10,QChar('0')).arg(t%60,2,10,QChar('0')); };
+    m_whiteLabel->setText("White: " + format(m_whiteTime));
+    m_blackLabel->setText("Black: " + format(m_blackTime));
 }
