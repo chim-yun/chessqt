@@ -5,6 +5,7 @@
 #include <QInputDialog>
 #include <QGraphicsRectItem>
 #include <QPixmap>
+#include <QLabel>
 #include <QRandomGenerator>
 #include <QNetworkRequest>
 #include <QUrlQuery>
@@ -19,6 +20,13 @@ MainWindow::MainWindow(const QString &user, QWidget *parent)
     m_scene = new QGraphicsScene(this);
     m_view = new BoardView(m_scene, &m_board, this);
     m_scene->setSceneRect(0,0,400,400);
+
+    m_whiteLabel = new QLabel(this);
+    m_blackLabel = new QLabel(this);
+    statusBar()->addPermanentWidget(m_whiteLabel);
+    statusBar()->addPermanentWidget(m_blackLabel);
+    m_whiteLabel->setVisible(false);
+    m_blackLabel->setVisible(false);
 
     showMenu();
 }
@@ -56,6 +64,10 @@ void MainWindow::startGame()
     setCentralWidget(m_view);
     redrawBoard();
 
+    m_whiteLabel->setVisible(true);
+    m_blackLabel->setVisible(true);
+    updateTimerDisplay();
+
     m_timer.start(1000);
     connect(&m_timer, &QTimer::timeout, this, &MainWindow::updateTimer);
     connect(m_view, &BoardView::boardChanged, this, &MainWindow::onBoardChange);
@@ -74,6 +86,7 @@ void MainWindow::updateTimer()
         --m_whiteTime;
     else
         --m_blackTime;
+    updateTimerDisplay();
     if (m_whiteTime<=0 || m_blackTime<=0) {
         QMessageBox::information(this, "Time", m_whiteTime<=0?"Black wins":"White wins");
         endGame();
@@ -158,6 +171,7 @@ void MainWindow::handleAiReply(QNetworkReply *reply)
         m_board.move(from,to);
         m_view->clearSelection();
         redrawBoard();
+        checkGameOver();
     }
 }
 
@@ -177,6 +191,8 @@ void MainWindow::checkGameOver()
 
 void MainWindow::showMenu()
 {
+    m_whiteLabel->setVisible(false);
+    m_blackLabel->setVisible(false);
     auto *central = new QWidget(this);
     auto *layout = new QVBoxLayout(central);
     auto *playOffline = new QPushButton("Offline 2 Players", this);
@@ -197,5 +213,14 @@ void MainWindow::endGame()
     disconnect(m_view, &BoardView::highlightChanged, this, &MainWindow::setHighlight);
     m_highlight.clear();
     m_mode = Off;
+    m_whiteLabel->setVisible(false);
+    m_blackLabel->setVisible(false);
     showMenu();
+}
+
+void MainWindow::updateTimerDisplay()
+{
+    auto format=[&](int t){ return QString("%1:%2").arg(t/60,2,10,QChar('0')).arg(t%60,2,10,QChar('0')); };
+    m_whiteLabel->setText("White: " + format(m_whiteTime));
+    m_blackLabel->setText("Black: " + format(m_blackTime));
 }
