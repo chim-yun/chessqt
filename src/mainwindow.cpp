@@ -71,6 +71,7 @@ void MainWindow::startGame()
     timerLayout->addWidget(m_blackLabel);
     layout->addLayout(timerLayout);
     setCentralWidget(central);
+    m_view->show();
     redrawBoard();
 
     m_whiteLabel->setVisible(true);
@@ -200,6 +201,9 @@ void MainWindow::checkGameOver()
 
 void MainWindow::showMenu()
 {
+    // keep the board view alive when replacing the central widget
+    m_view->setParent(this);
+    m_view->hide();
     m_whiteLabel->setVisible(false);
     m_blackLabel->setVisible(false);
     auto *central = new QWidget(this);
