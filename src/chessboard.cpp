@@ -1,6 +1,8 @@
 #include "chessboard.h"
 #include "utils.h"
 #include <numeric>
+#include <algorithm>
+#include <array>
 
 ChessBoard::ChessBoard()
 {
@@ -9,8 +11,7 @@ ChessBoard::ChessBoard()
 
 void ChessBoard::reset()
 {
-    m_board.fill(Empty);
-    const Piece init[64] = {
+    static constexpr Board init{{
         BR, BN, BB, BQ, BK, BB, BN, BR,
         BP, BP, BP, BP, BP, BP, BP, BP,
         Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty,
@@ -19,9 +20,8 @@ void ChessBoard::reset()
         Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty,
         WP, WP, WP, WP, WP, WP, WP, WP,
         WR, WN, WB, WQ, WK, WB, WN, WR
-    };
-    for (int i=0;i<64;++i)
-        m_board[i]=init[i];
+    }};
+    m_board = init;
     m_turn = White;
     m_history.clear();
     m_whiteKingMoved = false;
@@ -43,10 +43,9 @@ bool ChessBoard::move(const QString &from, const QString &to)
 {
     QVector<QPoint> moves = legalMoves(from);
     int tr,tc; strToPos(to,tr,tc);
-    bool legal=false;
-    for (const QPoint &p : moves) {
-        if (p.x()==tr && p.y()==tc) { legal=true; break; }
-    }
+    bool legal = std::any_of(moves.cbegin(), moves.cend(), [&](const QPoint &p){
+        return p.x()==tr && p.y()==tc;
+    });
     if (!legal)
         return false;
     int fr,fc; strToPos(from,fr,fc);
@@ -151,22 +150,30 @@ QVector<QPoint> ChessBoard::legalMoves(const QString &from) const
     }
 
     if (p==WN || p==BN) {
-        const int d[8][2]={{-2,-1},{-2,1},{-1,-2},{-1,2},{1,-2},{1,2},{2,-1},{2,1}};
-        for (auto &o:d) add(r+o[0],c+o[1]);
+        static const std::array<std::array<int,2>,8> d{{
+            {{-2,-1}},{{-2,1}},{{-1,-2}},{{-1,2}},{{1,-2}},{{1,2}},{{2,-1}},{{2,1}}
+        }};
+        std::for_each(d.begin(), d.end(), [&](const auto &o){ add(r+o[0], c+o[1]); });
     }
     if (p==WB || p==BB || p==WQ || p==BQ) {
-        const int d[4][2]={{-1,-1},{-1,1},{1,-1},{1,1}};
-        for (auto &o:d){int rr=r+o[0],cc=c+o[1];while(add(rr,cc)){rr+=o[0];cc+=o[1];}}
+        static const std::array<std::array<int,2>,4> d{{ {{-1,-1}},{{-1,1}},{{1,-1}},{{1,1}} }};
+        std::for_each(d.begin(), d.end(), [&](const auto &o){
+            for(int rr=r+o[0], cc=c+o[1]; add(rr,cc); rr+=o[0], cc+=o[1]){}
+        });
         if (p==WB || p==BB) {}
     }
     if (p==WR || p==BR || p==WQ || p==BQ) {
-        const int d[4][2]={{-1,0},{1,0},{0,-1},{0,1}};
-        for (auto &o:d){int rr=r+o[0],cc=c+o[1];while(add(rr,cc)){rr+=o[0];cc+=o[1];}}
+        static const std::array<std::array<int,2>,4> d{{ {{-1,0}},{{1,0}},{{0,-1}},{{0,1}} }};
+        std::for_each(d.begin(), d.end(), [&](const auto &o){
+            for(int rr=r+o[0], cc=c+o[1]; add(rr,cc); rr+=o[0], cc+=o[1]){}
+        });
         if (p==WR || p==BR) {}
     }
     if (p==WK || p==BK) {
-        const int d[8][2]={{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
-        for (auto &o:d) add(r+o[0],c+o[1]);
+        static const std::array<std::array<int,2>,8> d{{
+            {{-1,-1}},{{-1,0}},{{-1,1}},{{0,-1}},{{0,1}},{{1,-1}},{{1,0}},{{1,1}}
+        }};
+        std::for_each(d.begin(), d.end(), [&](const auto &o){ add(r+o[0], c+o[1]); });
         // castling
         if(col==White && !m_whiteKingMoved){
             if(!m_whiteRightRookMoved && pieceAt(7,5)==Empty && pieceAt(7,6)==Empty && !isSquareAttacked(7,4,Black) && !isSquareAttacked(7,5,Black) && !isSquareAttacked(7,6,Black))
@@ -183,15 +190,14 @@ QVector<QPoint> ChessBoard::legalMoves(const QString &from) const
     }
 
     QVector<QPoint> final;
-    for(const QPoint &m : res){
+    std::copy_if(res.cbegin(), res.cend(), std::back_inserter(final), [&](const QPoint &m){
         ChessBoard tmp = *this;
         int fi=r*8+c;
         int ti=m.x()*8+m.y();
         tmp.m_board[ti]=tmp.m_board[fi];
         tmp.m_board[fi]=Empty;
-        if(!tmp.isInCheck(col))
-            final.append(m);
-    }
+        return !tmp.isInCheck(col);
+    });
     return final;
 }
 
@@ -204,43 +210,75 @@ bool ChessBoard::isSquareAttacked(int r,int c,Color by) const
         if(c<7 && pieceAt(r-dir,c+1)==(by==White?WP:BP)) return true;
     }
     // knight attacks
-    const int nd[8][2]={{-2,-1},{-2,1},{-1,-2},{-1,2},{1,-2},{1,2},{2,-1},{2,1}};
-    for(auto &o:nd){int rr=r+o[0],cc=c+o[1];if(rr>=0&&rr<8&&cc>=0&&cc<8){Piece t=pieceAt(rr,cc);if(t==(by==White?WN:BN)) return true;}}
+    static const std::array<std::array<int,2>,8> nd{{
+        {{-2,-1}},{{-2,1}},{{-1,-2}},{{-1,2}},{{1,-2}},{{1,2}},{{2,-1}},{{2,1}}
+    }};
+    if(std::any_of(nd.begin(), nd.end(), [&](const auto &o){
+            int rr=r+o[0], cc=c+o[1];
+            return rr>=0&&rr<8&&cc>=0&&cc<8 && pieceAt(rr,cc)==(by==White?WN:BN);
+        }))
+        return true;
     // bishop/queen attacks
-    const int bd[4][2]={{-1,-1},{-1,1},{1,-1},{1,1}};
-    for(auto&o:bd){int rr=r+o[0],cc=c+o[1];while(rr>=0&&rr<8&&cc>=0&&cc<8){Piece t=pieceAt(rr,cc);if(t!=Empty){if(pieceColor(t)==by&&(t==BB||t==BQ||t==WB||t==WQ)) return true; break;}rr+=o[0];cc+=o[1];}}
+    static const std::array<std::array<int,2>,4> bd{{ {{-1,-1}},{{-1,1}},{{1,-1}},{{1,1}} }};
+    auto rayAttack = [&](int dr,int dc,const std::array<Piece,4> &pieces){
+        for(int rr=r+dr,cc=c+dc; rr>=0&&rr<8&&cc>=0&&cc<8; rr+=dr,cc+=dc){
+            Piece t=pieceAt(rr,cc);
+            if(t!=Empty){
+                if(pieceColor(t)==by && std::find(pieces.begin(), pieces.end(), t)!=pieces.end())
+                    return true;
+                break;
+            }
+        }
+        return false;
+    };
+    if(std::any_of(bd.begin(), bd.end(), [&](const auto &o){
+            return rayAttack(o[0], o[1], {BB,BQ,WB,WQ});
+        }))
+        return true;
     // rook/queen attacks
-    const int rd[4][2]={{-1,0},{1,0},{0,-1},{0,1}};
-    for(auto&o:rd){int rr=r+o[0],cc=c+o[1];while(rr>=0&&rr<8&&cc>=0&&cc<8){Piece t=pieceAt(rr,cc);if(t!=Empty){if(pieceColor(t)==by&&(t==BR||t==BQ||t==WR||t==WQ)) return true; break;}rr+=o[0];cc+=o[1];}}
+    static const std::array<std::array<int,2>,4> rd{{ {{-1,0}},{{1,0}},{{0,-1}},{{0,1}} }};
+    if(std::any_of(rd.begin(), rd.end(), [&](const auto &o){
+            return rayAttack(o[0], o[1], {BR,BQ,WR,WQ});
+        }))
+        return true;
     // king attacks
-    const int kd[8][2]={{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
-    for(auto&o:kd){int rr=r+o[0],cc=c+o[1];if(rr>=0&&rr<8&&cc>=0&&cc<8){Piece t=pieceAt(rr,cc);if(t==(by==White?WK:BK)) return true;}}
+    static const std::array<std::array<int,2>,8> kd{{
+        {{-1,-1}},{{-1,0}},{{-1,1}},{{0,-1}},{{0,1}},{{1,-1}},{{1,0}},{{1,1}}
+    }};
+    if(std::any_of(kd.begin(), kd.end(), [&](const auto &o){
+            int rr=r+o[0], cc=c+o[1];
+            return rr>=0&&rr<8&&cc>=0&&cc<8 && pieceAt(rr,cc)==(by==White?WK:BK);
+        }))
+        return true;
     return false;
 }
 
 bool ChessBoard::isInCheck(Color c) const
 {
-    for(int r=0;r<8;++r)
-        for(int col=0;col<8;++col){
-            Piece p = pieceAt(r,col);
-            if(p==(c==White?WK:BK))
-                return isSquareAttacked(r,col,c==White?Black:White);
-        }
-    return false;
+    auto it = std::find_if(m_board.cbegin(), m_board.cend(), [&](Piece p){
+        return p == (c==White?WK:BK);
+    });
+    if(it == m_board.cend())
+        return false;
+    int idx = std::distance(m_board.cbegin(), it);
+    int r = idx / 8;
+    int col = idx % 8;
+    return isSquareAttacked(r, col, c==White?Black:White);
 }
 
 bool ChessBoard::hasMoves(Color c) const
 {
-    for(int r=0;r<8;++r)
-        for(int col=0;col<8;++col){
-            Piece p=pieceAt(r,col);
-            if(p!=Empty && pieceColor(p)==c){
-                QString pos = QString("%1%2").arg(QChar('a'+col)).arg(8-r);
-                if(!legalMoves(pos).isEmpty())
-                    return true;
-            }
+    int idx = 0;
+    return std::any_of(m_board.cbegin(), m_board.cend(), [&](Piece p) mutable {
+        int r = idx / 8;
+        int col = idx % 8;
+        ++idx;
+        if(p!=Empty && pieceColor(p)==c){
+            QString pos = QString("%1%2").arg(QChar('a'+col)).arg(8-r);
+            return !legalMoves(pos).isEmpty();
         }
-    return false;
+        return false;
+    });
 }
 
 QString ChessBoard::toFen() const

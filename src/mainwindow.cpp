@@ -8,6 +8,8 @@
 #include <QPixmap>
 #include <QLabel>
 #include <QRandomGenerator>
+#include <algorithm>
+#include <ranges>
 #include <QNetworkRequest>
 #include <QUrlQuery>
 #include <QJsonDocument>
@@ -90,6 +92,7 @@ void MainWindow::startGame()
             m_net = new QNetworkAccessManager(this);
         }
     }
+
 }
 
 void MainWindow::updateTimer()
@@ -109,10 +112,12 @@ void MainWindow::updateTimer()
 void MainWindow::redrawBoard()
 {
     m_scene->clear();
-    for (int r=0;r<8;++r) {
-        for (int c=0;c<8;++c) {
+    auto rng = std::views::iota(0,8);
+    std::ranges::for_each(rng, [&](int r){
+        std::ranges::for_each(rng, [&](int c){
             QBrush brush = ((r+c)%2)?QBrush(Qt::gray):QBrush(Qt::white);
-            for(const QPoint &p : m_highlight){ if(p.x()==r && p.y()==c){ brush = QBrush(Qt::yellow); break; } }
+            if(std::any_of(m_highlight.cbegin(), m_highlight.cend(), [&](const QPoint &p){ return p.x()==r && p.y()==c; }))
+                brush = QBrush(Qt::yellow);
             m_scene->addRect(c*50,r*50,50,50,QPen(),brush);
             ChessBoard::Piece p = m_board.pieceAt(r,c);
             if (p!=ChessBoard::Empty) {
@@ -137,8 +142,8 @@ void MainWindow::redrawBoard()
                     pix.load("../assets/"+name+".png");
                 m_scene->addPixmap(pix.scaled(50,50))->setPos(c*50,r*50);
             }
-        }
-    }
+        });
+    });
 }
 
 void MainWindow::onBoardChange()
@@ -208,6 +213,7 @@ void MainWindow::showMenu()
 
     if(m_net)
         m_net->disconnect(this);
+
     // keep widgets alive when replacing the central widget
     m_view->setParent(this);
     m_whiteLabel->setParent(this);
