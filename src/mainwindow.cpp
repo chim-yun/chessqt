@@ -96,6 +96,7 @@ void MainWindow::updateTimer()
         disconnect(m_view, &BoardView::boardChanged, this, &MainWindow::onBoardChange);
         disconnect(m_view, &BoardView::highlightChanged, this, &MainWindow::setHighlight);
         showMenu();
+
         return;
     }
 }
@@ -195,5 +196,6 @@ void MainWindow::checkGameOver()
         disconnect(m_view, &BoardView::boardChanged, this, &MainWindow::onBoardChange);
         disconnect(m_view, &BoardView::highlightChanged, this, &MainWindow::setHighlight);
         showMenu();
+
     }
 }

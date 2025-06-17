@@ -47,6 +47,7 @@ private:
 
 public:
     bool backToLoginRequested() const { return false; }
+
 };
 
 #endif // MAINWINDOW_H
