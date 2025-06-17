@@ -6,26 +6,36 @@
 #include <QGraphicsRectItem>
 #include <QPixmap>
 #include <QRandomGenerator>
+#include <QNetworkRequest>
+#include <QUrlQuery>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include "boardview.h"
 
 MainWindow::MainWindow(const QString &user, QWidget *parent)
     : QMainWindow(parent), m_player(user)
 {
     setWindowTitle("Chess - " + user);
-    auto *central = new QWidget(this);
-    auto *layout = new QVBoxLayout(central);
-    auto *playOffline = new QPushButton("Offline 2 Players", this);
-    auto *playAi = new QPushButton("Play vs AI", this);
-    layout->addWidget(playOffline);
-    layout->addWidget(playAi);
-    setCentralWidget(central);
-
-    connect(playOffline, &QPushButton::clicked, this, &MainWindow::chooseOffline);
-    connect(playAi, &QPushButton::clicked, this, &MainWindow::chooseVsAi);
+    showMenu();
 
     m_scene = new QGraphicsScene(this);
     m_view = new BoardView(m_scene, &m_board, this);
     m_scene->setSceneRect(0,0,400,400);
+}
+
+void MainWindow::showMenu()
+{
+    if(m_menu)
+        m_menu->deleteLater();
+    m_menu = new QWidget(this);
+    auto *layout = new QVBoxLayout(m_menu);
+    auto *playOffline = new QPushButton("Offline 2 Players", m_menu);
+    auto *playAi = new QPushButton("Play vs AI", m_menu);
+    layout->addWidget(playOffline);
+    layout->addWidget(playAi);
+    setCentralWidget(m_menu);
+    connect(playOffline, &QPushButton::clicked, this, &MainWindow::chooseOffline);
+    connect(playAi, &QPushButton::clicked, this, &MainWindow::chooseVsAi);
 }
 
 void MainWindow::chooseOffline()
@@ -67,14 +77,8 @@ void MainWindow::startGame()
     connect(m_view, &BoardView::highlightChanged, this, &MainWindow::setHighlight);
 
     if(m_mode==VsAi){
-        if(!m_engine){
-            m_engine = new QProcess(this);
-            m_engine->start("stockfish");
-            m_engine->write("uci\n");
-            m_engine->write("isready\n");
-            m_engine->waitForReadyRead(3000);
-            m_engine->readAll();
-            connect(m_engine,&QProcess::readyRead,this,&MainWindow::readAiMove);
+        if(!m_net){
+            m_net = new QNetworkAccessManager(this);
         }
     }
 }
@@ -89,6 +93,9 @@ void MainWindow::updateTimer()
         QMessageBox::information(this, "Time", m_whiteTime<=0?"Black wins":"White wins");
         m_timer.stop();
         disconnect(&m_timer, &QTimer::timeout, this, &MainWindow::updateTimer);
+        disconnect(m_view, &BoardView::boardChanged, this, &MainWindow::onBoardChange);
+        disconnect(m_view, &BoardView::highlightChanged, this, &MainWindow::setHighlight);
+        showMenu();
         return;
     }
 }
@@ -144,30 +151,32 @@ void MainWindow::setHighlight(const QVector<QPoint> &moves)
 
 void MainWindow::requestAiMove()
 {
-    if(!m_engine) return;
-    QString cmd = "position startpos";
-    auto hist = m_board.history();
-    if(!hist.isEmpty())
-        cmd += " moves " + hist.join(' ');
-    m_engine->write(cmd.toUtf8()+"\n");
-    m_engine->write("go movetime 1000\n");
+    if(!m_net) return;
+    QUrl url("https://stockfish.online/api/s/v2.php");
+    QUrlQuery query;
+    query.addQueryItem("fen", m_board.toFen());
+    query.addQueryItem("depth", "12");
+    url.setQuery(query);
+    QNetworkRequest req(url);
+    auto reply = m_net->get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, reply](){ handleAiReply(reply); });
 }
 
-void MainWindow::readAiMove()
+void MainWindow::handleAiReply(QNetworkReply *reply)
 {
-    while(m_engine->canReadLine()){
-        QByteArray line = m_engine->readLine();
-        if(line.startsWith("bestmove")){
-            QList<QByteArray> parts = line.split(' ');
-            if(parts.size()>=2){
-                QString mv = parts[1];
-                QString from = mv.mid(0,2);
-                QString to = mv.mid(2,2);
-                m_board.move(from,to);
-                m_view->clearSelection();
-                redrawBoard();
-            }
-        }
+    QByteArray data = reply->readAll();
+    reply->deleteLater();
+    QJsonDocument doc = QJsonDocument::fromJson(data);
+    if(!doc.isObject()) return;
+    QString best = doc.object().value("bestmove").toString();
+    if(best.startsWith("bestmove"))
+        best = best.split(' ').value(1);
+    if(best.size() >= 4){
+        QString from = best.mid(0,2);
+        QString to = best.mid(2,2);
+        m_board.move(from,to);
+        m_view->clearSelection();
+        redrawBoard();
     }
 }
 
@@ -182,6 +191,9 @@ void MainWindow::checkGameOver()
             msg = "Stalemate";
         QMessageBox::information(this,"Game Over",msg);
         m_timer.stop();
-        setCentralWidget(nullptr);
+        disconnect(&m_timer, &QTimer::timeout, this, &MainWindow::updateTimer);
+        disconnect(m_view, &BoardView::boardChanged, this, &MainWindow::onBoardChange);
+        disconnect(m_view, &BoardView::highlightChanged, this, &MainWindow::setHighlight);
+        showMenu();
     }
 }

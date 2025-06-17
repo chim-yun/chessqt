@@ -22,6 +22,7 @@ public:
     Color currentColor() const { return m_turn; }
     Color pieceColor(Piece p) const;
     QVector<QString> history() const { return m_history; }
+    QString toFen() const;
 
 private:
     using Board = std::array<Piece, 64>;

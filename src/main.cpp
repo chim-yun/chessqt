@@ -11,6 +11,5 @@ int main(int argc, char *argv[])
 
     MainWindow w(login.username());
     w.show();
-
     return app.exec();
 }

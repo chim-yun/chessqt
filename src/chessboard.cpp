@@ -1,4 +1,5 @@
 #include "chessboard.h"
+#include "utils.h"
 
 ChessBoard::ChessBoard()
 {
@@ -239,4 +240,59 @@ bool ChessBoard::hasMoves(Color c) const
             }
         }
     return false;
+}
+
+QString ChessBoard::toFen() const
+{
+    auto pieceChar=[&](Piece p){
+        switch(p){
+        case WP: return 'P';
+        case WR: return 'R';
+        case WN: return 'N';
+        case WB: return 'B';
+        case WQ: return 'Q';
+        case WK: return 'K';
+        case BP: return 'p';
+        case BR: return 'r';
+        case BN: return 'n';
+        case BB: return 'b';
+        case BQ: return 'q';
+        case BK: return 'k';
+        default: return '1';
+        }
+    };
+
+    QString fen;
+    for(int r=0;r<8;++r){
+        int empty=0;
+        for(int c=0;c<8;++c){
+            Piece p = pieceAt(r,c);
+            if(p==Empty){
+                ++empty;
+            }else{
+                if(empty>0){ fen+=QString::number(empty); empty=0; }
+                fen+=pieceChar(p);
+            }
+        }
+        if(empty>0) fen+=QString::number(empty);
+        if(r!=7) fen+='/';
+    }
+    fen+=' ';
+    fen+=(m_turn==White?'w':'b');
+    fen+=' ';
+    QString rights;
+    if(!m_whiteKingMoved && !m_whiteRightRookMoved) rights+="K";
+    if(!m_whiteKingMoved && !m_whiteLeftRookMoved) rights+="Q";
+    if(!m_blackKingMoved && !m_blackRightRookMoved) rights+="k";
+    if(!m_blackKingMoved && !m_blackLeftRookMoved) rights+="q";
+    if(rights.isEmpty()) rights="-";
+    fen+=rights;
+    fen+=' ';
+    if(m_enPassant.x()!=-1)
+        fen+=posToStr(m_enPassant.x(),m_enPassant.y());
+    else
+        fen+="-";
+    fen+=" 0 ";
+    fen+=QString::number(m_history.size()/2 + 1);
+    return fen;
 }
