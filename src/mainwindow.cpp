@@ -217,10 +217,10 @@ void MainWindow::handleAiOutput()
     if(best.size() >= 4){
         QString from = best.mid(0,2);
         QString to = best.mid(2,2);
-        m_board.move(from,to);
-        m_view->clearSelection();
-        redrawBoard();
-        checkGameOver();
+        if(m_board.move(from,to)){
+            m_view->clearSelection();
+            m_view->notifyBoardChanged();
+        }
     }
     disconnect(m_ai, &QProcess::readyReadStandardOutput, this, &MainWindow::handleAiOutput);
 }

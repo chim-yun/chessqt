@@ -13,6 +13,8 @@ public:
 
     void setVsAiMode(bool vsAi) { m_vsAi = vsAi; }
     void setPlayerColor(ChessBoard::Color color) { m_playerColor = color; }
+    void notifyBoardChanged() { emit boardChanged(); }
+
 
 signals:
     void boardChanged();
