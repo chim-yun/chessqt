@@ -1,16 +1,16 @@
 <RCC>
     <qresource prefix="/images">
-        <file>../assets/rook_w.png</file>
-        <file>../assets/rook_b.png</file>
-        <file>../assets/knight_w.png</file>
-        <file>../assets/knight_b.png</file>
-        <file>../assets/bishop_w.png</file>
-        <file>../assets/bishop_b.png</file>
-        <file>../assets/queen_w.png</file>
-        <file>../assets/queen_b.png</file>
-        <file>../assets/king_w.png</file>
-        <file>../assets/king_b.png</file>
-        <file>../assets/pawn_w.png</file>
-        <file>../assets/pawn_b.png</file>
+        <file alias="rook_w.png">../assets/rook_w.png</file>
+        <file alias="rook_b.png">../assets/rook_b.png</file>
+        <file alias="knight_w.png">../assets/knight_w.png</file>
+        <file alias="knight_b.png">../assets/knight_b.png</file>
+        <file alias="bishop_w.png">../assets/bishop_w.png</file>
+        <file alias="bishop_b.png">../assets/bishop_b.png</file>
+        <file alias="queen_w.png">../assets/queen_w.png</file>
+        <file alias="queen_b.png">../assets/queen_b.png</file>
+        <file alias="king_w.png">../assets/king_w.png</file>
+        <file alias="king_b.png">../assets/king_b.png</file>
+        <file alias="pawn_w.png">../assets/pawn_w.png</file>
+        <file alias="pawn_b.png">../assets/pawn_b.png</file>
     </qresource>
 </RCC>
