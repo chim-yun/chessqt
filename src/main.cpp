@@ -5,12 +5,17 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    Login login;
-    if (!login.exec())
-        return 0;
+    while (true) {
+        Login login;
+        if (!login.exec())
+            break;
 
-    MainWindow w(login.username());
-    w.show();
+        MainWindow w(login.username());
+        w.show();
+        app.exec();
+        if(!w.backToLoginRequested())
+            break;
+    }
 
-    return app.exec();
+    return 0;
 }
