@@ -5,7 +5,8 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    while (true) {
+    bool again;
+    do {
         Login login;
         if (!login.exec())
             break;
@@ -13,9 +14,8 @@ int main(int argc, char *argv[])
         MainWindow w(login.username());
         w.show();
         app.exec();
-        if(!w.backToLoginRequested())
-            break;
-    }
+        again = w.backToLoginRequested();
+    } while(again);
 
     return 0;
 }
