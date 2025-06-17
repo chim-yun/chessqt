@@ -201,8 +201,10 @@ void MainWindow::checkGameOver()
 
 void MainWindow::showMenu()
 {
-    // keep the board view alive when replacing the central widget
+    // keep widgets alive when replacing the central widget
     m_view->setParent(this);
+    m_whiteLabel->setParent(this);
+    m_blackLabel->setParent(this);
     m_view->hide();
     m_whiteLabel->setVisible(false);
     m_blackLabel->setVisible(false);
