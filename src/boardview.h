@@ -15,6 +15,7 @@ public:
     void setPlayerColor(ChessBoard::Color color) { m_playerColor = color; }
     void notifyBoardChanged() { emit boardChanged(); }
 
+
 signals:
     void boardChanged();
     void highlightChanged(const QVector<QPoint> &moves);
