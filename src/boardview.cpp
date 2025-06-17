@@ -14,6 +14,8 @@ void BoardView::mousePressEvent(QMouseEvent *event)
     int c = pos.x()/50;
     int r = pos.y()/50;
     if (c<0||c>=8||r<0||r>=8) return;
+    if(m_vsAi && m_board->currentColor()!=m_playerColor)
+        return;
     QString coord = posToStr(r,c);
     if (m_selected.isEmpty()) {
         ChessBoard::Piece p = m_board->pieceAt(r,c);

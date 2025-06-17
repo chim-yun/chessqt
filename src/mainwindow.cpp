@@ -79,6 +79,8 @@ void MainWindow::startGame()
     layout->addWidget(m_resignBtn);
     setCentralWidget(central);
     m_view->show();
+    m_view->setVsAiMode(m_mode==VsAi);
+    m_view->setPlayerColor(m_playerColor);
     redrawBoard();
 
     m_whiteLabel->setVisible(true);
@@ -94,11 +96,26 @@ void MainWindow::startGame()
     if(m_mode==VsAi){
         if(!m_ai){
             m_ai = new QProcess(this);
-            QString prog = QCoreApplication::applicationDirPath()+"/../stockfish/engine/stockfish";
-            if(!QFile::exists(prog))
-                prog = QCoreApplication::applicationDirPath()+"/stockfish/engine/stockfish";
-            if(!QFile::exists(prog))
-                prog = "stockfish";
+#ifdef Q_OS_WIN
+            const QString exe = "stockfish.exe";
+#else
+            const QString exe = "stockfish";
+#endif
+            QStringList searchPaths{
+                QCoreApplication::applicationDirPath()+"/../../stockfish/engine/" + exe,
+                QCoreApplication::applicationDirPath()+"/../stockfish/engine/" + exe,
+                QCoreApplication::applicationDirPath()+"/stockfish/engine/" + exe,
+                exe
+            };
+            QString prog;
+            for(const QString &p : searchPaths){
+                if(QFile::exists(p)){
+                    prog = p;
+                    break;
+                }
+            }
+            if(prog.isEmpty())
+                prog = exe;
             m_ai->setProgram(prog);
             m_ai->start();
             if(m_ai->waitForStarted(1000)){
@@ -200,10 +217,10 @@ void MainWindow::handleAiOutput()
     if(best.size() >= 4){
         QString from = best.mid(0,2);
         QString to = best.mid(2,2);
-        m_board.move(from,to);
-        m_view->clearSelection();
-        redrawBoard();
-        checkGameOver();
+        if(m_board.move(from,to)){
+            m_view->clearSelection();
+            m_view->notifyBoardChanged();
+        }
     }
     disconnect(m_ai, &QProcess::readyReadStandardOutput, this, &MainWindow::handleAiOutput);
 }
