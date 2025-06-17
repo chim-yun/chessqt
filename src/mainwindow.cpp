@@ -10,10 +10,9 @@
 #include <QRandomGenerator>
 #include <algorithm>
 #include <ranges>
-#include <QNetworkRequest>
-#include <QUrlQuery>
-#include <QJsonDocument>
-#include <QJsonObject>
+#include <QProcess>
+#include <QFile>
+#include <QCoreApplication>
 #include "boardview.h"
 
 MainWindow::MainWindow(const QString &user, QWidget *parent)
@@ -28,6 +27,9 @@ MainWindow::MainWindow(const QString &user, QWidget *parent)
     m_blackLabel = new QLabel(this);
     m_whiteLabel->setVisible(false);
     m_blackLabel->setVisible(false);
+    m_resignBtn = new QPushButton("Resign", this);
+    m_resignBtn->setVisible(false);
+    connect(m_resignBtn, &QPushButton::clicked, this, &MainWindow::resignGame);
 
     showMenu();
 }
@@ -74,12 +76,14 @@ void MainWindow::startGame()
     timerLayout->addStretch();
     timerLayout->addWidget(m_blackLabel);
     layout->addLayout(timerLayout);
+    layout->addWidget(m_resignBtn);
     setCentralWidget(central);
     m_view->show();
     redrawBoard();
 
     m_whiteLabel->setVisible(true);
     m_blackLabel->setVisible(true);
+    m_resignBtn->setVisible(true);
     updateTimerDisplay();
 
     m_timer.start(1000);
@@ -88,8 +92,21 @@ void MainWindow::startGame()
     connect(m_view, &BoardView::highlightChanged, this, &MainWindow::setHighlight);
 
     if(m_mode==VsAi){
-        if(!m_net){
-            m_net = new QNetworkAccessManager(this);
+        if(!m_ai){
+            m_ai = new QProcess(this);
+            QString prog = QCoreApplication::applicationDirPath()+"/../stockfish/stockfish";
+            if(!QFile::exists(prog))
+                prog = QCoreApplication::applicationDirPath()+"/stockfish/stockfish";
+            if(!QFile::exists(prog))
+                prog = "stockfish";
+            m_ai->setProgram(prog);
+            m_ai->start();
+            if(m_ai->waitForStarted(1000)){
+                m_ai->write("uci\n");
+                m_ai->write("isready\n");
+                m_ai->waitForReadyRead(1000);
+                m_ai->readAll();
+            }
         }
     }
 
@@ -162,26 +179,24 @@ void MainWindow::setHighlight(const QVector<QPoint> &moves)
 
 void MainWindow::requestAiMove()
 {
-    if(!m_net) return;
-    QUrl url("https://stockfish.online/api/s/v2.php");
-    QUrlQuery query;
-    query.addQueryItem("fen", m_board.toFen());
-    query.addQueryItem("depth", "12");
-    url.setQuery(query);
-    QNetworkRequest req(url);
-    auto reply = m_net->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, reply](){ handleAiReply(reply); });
+    if(!m_ai || m_ai->state()!=QProcess::Running)
+        return;
+    QByteArray cmd = "position fen " + m_board.toFen().toUtf8() + "\n";
+    cmd += "go depth 12\n";
+    m_ai->write(cmd);
+    connect(m_ai, &QProcess::readyReadStandardOutput, this, &MainWindow::handleAiOutput);
 }
 
-void MainWindow::handleAiReply(QNetworkReply *reply)
+void MainWindow::handleAiOutput()
 {
-    QByteArray data = reply->readAll();
-    reply->deleteLater();
-    QJsonDocument doc = QJsonDocument::fromJson(data);
-    if(!doc.isObject()) return;
-    QString best = doc.object().value("bestmove").toString();
-    if(best.startsWith("bestmove"))
-        best = best.split(' ').value(1);
+    QByteArray data = m_ai->readAllStandardOutput();
+    m_aiBuffer += data;
+    int idx = m_aiBuffer.indexOf("bestmove");
+    if(idx == -1)
+        return;
+    QByteArray line = m_aiBuffer.mid(idx).split('\n').first();
+    QString best = QString::fromUtf8(line).split(' ').value(1);
+    m_aiBuffer.clear();
     if(best.size() >= 4){
         QString from = best.mid(0,2);
         QString to = best.mid(2,2);
@@ -190,6 +205,7 @@ void MainWindow::handleAiReply(QNetworkReply *reply)
         redrawBoard();
         checkGameOver();
     }
+    disconnect(m_ai, &QProcess::readyReadStandardOutput, this, &MainWindow::handleAiOutput);
 }
 
 void MainWindow::checkGameOver()
@@ -211,16 +227,16 @@ void MainWindow::showMenu()
     if(QWidget *old = centralWidget())
         old->deleteLater();
 
-    if(m_net)
-        m_net->disconnect(this);
 
     // keep widgets alive when replacing the central widget
     m_view->setParent(this);
     m_whiteLabel->setParent(this);
     m_blackLabel->setParent(this);
+    m_resignBtn->setParent(this);
     m_view->hide();
     m_whiteLabel->setVisible(false);
     m_blackLabel->setVisible(false);
+    m_resignBtn->setVisible(false);
     auto *central = new QWidget(this);
     auto *layout = new QVBoxLayout(central);
     auto *playOffline = new QPushButton("Offline 2 Players", this);
@@ -243,6 +259,7 @@ void MainWindow::endGame()
     m_mode = Off;
     m_whiteLabel->setVisible(false);
     m_blackLabel->setVisible(false);
+    m_resignBtn->setVisible(false);
     showMenu();
 }
 
@@ -251,4 +268,12 @@ void MainWindow::updateTimerDisplay()
     auto format=[&](int t){ return QString("%1:%2").arg(t/60,2,10,QChar('0')).arg(t%60,2,10,QChar('0')); };
     m_whiteLabel->setText("White: " + format(m_whiteTime));
     m_blackLabel->setText("Black: " + format(m_blackTime));
+}
+
+void MainWindow::resignGame()
+{
+    ChessBoard::Color cur = m_board.currentColor();
+    QString msg = (cur==ChessBoard::White)?"White resigns. Black wins." : "Black resigns. White wins.";
+    QMessageBox::information(this, "Game Over", msg);
+    endGame();
 }
