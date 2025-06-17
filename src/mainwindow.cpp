@@ -175,7 +175,7 @@ void MainWindow::requestAiMove()
     QByteArray cmd = "position fen " + m_board.toFen().toUtf8() + "\n";
     cmd += "go depth 12\n";
     m_ai->write(cmd);
-    connect(m_ai, &QProcess::readyReadStandardOutput, this, &MainWindow::handleAiOutput);
+    connect(m_ai, &QProcess::readyReadStandardOutput, this, &MainWindow::handleAiOutput, Qt::UniqueConnection);
 }
 
 void MainWindow::handleAiOutput()
@@ -281,6 +281,10 @@ void MainWindow::startAiEngine()
         QCoreApplication::applicationDirPath()+"/../../stockfish/engine/" + exe,
         QCoreApplication::applicationDirPath()+"/../stockfish/engine/" + exe,
         QCoreApplication::applicationDirPath()+"/stockfish/engine/" + exe,
+        QCoreApplication::applicationDirPath()+"/../../stockfish/engine/src/" + exe,
+        QCoreApplication::applicationDirPath()+"/../stockfish/engine/src/" + exe,
+        QCoreApplication::applicationDirPath()+"/stockfish/engine/src/" + exe,
+
         exe
     };
     QString prog;
@@ -294,6 +298,8 @@ void MainWindow::startAiEngine()
         prog = exe;
     m_ai->setProgram(prog);
     m_ai->start();
+    m_aiBuffer.clear();
+
     if(m_ai->waitForStarted(1000)){
         m_ai->write("uci\n");
         m_ai->write("isready\n");
