@@ -93,6 +93,7 @@ void MainWindow::startGame()
     connect(m_view, &BoardView::boardChanged, this, &MainWindow::onBoardChange);
     connect(m_view, &BoardView::highlightChanged, this, &MainWindow::setHighlight);
 
+
     if(m_mode==VsAi)
         startAiEngine();
 
@@ -165,9 +166,12 @@ void MainWindow::setHighlight(const QVector<QPoint> &moves)
 
 void MainWindow::requestAiMove()
 {
+
     startAiEngine();
     if(!m_ai || m_ai->state()!=QProcess::Running)
+
         return;
+    }
     QByteArray cmd = "position fen " + m_board.toFen().toUtf8() + "\n";
     cmd += "go depth 12\n";
     m_ai->write(cmd);
@@ -280,6 +284,7 @@ void MainWindow::startAiEngine()
         QCoreApplication::applicationDirPath()+"/../../stockfish/engine/src/" + exe,
         QCoreApplication::applicationDirPath()+"/../stockfish/engine/src/" + exe,
         QCoreApplication::applicationDirPath()+"/stockfish/engine/src/" + exe,
+
         exe
     };
     QString prog;
@@ -294,6 +299,7 @@ void MainWindow::startAiEngine()
     m_ai->setProgram(prog);
     m_ai->start();
     m_aiBuffer.clear();
+
     if(m_ai->waitForStarted(1000)){
         m_ai->write("uci\n");
         m_ai->write("isready\n");
