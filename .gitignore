@@ -1,0 +1,8 @@
+build
+*.o
+*.pro.user
+*.qmake.stash
+CMakeFiles
+CMakeCache.txt
+cmake-build-*
+*.db
