@@ -11,6 +11,7 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets Sql Core)
 # traditional Makefile. Call make explicitly instead.
 add_custom_target(build_stockfish ALL
     COMMAND make build
+
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/stockfish/engine/src
     COMMENT "Building Stockfish engine"
 )
