@@ -173,15 +173,14 @@ void MainWindow::readAiMove()
 
 void MainWindow::checkGameOver()
 {
-    bool w=false,b=false;
-    for(int r=0;r<8;++r)
-        for(int c=0;c<8;++c){
-            ChessBoard::Piece p=m_board.pieceAt(r,c);
-            if(p==ChessBoard::WK) w=true;
-            if(p==ChessBoard::BK) b=true;
-        }
-    if(!w||!b){
-        QMessageBox::information(this,"Game Over",!w?"Black wins":"White wins");
+    ChessBoard::Color cur = m_board.currentColor();
+    if(!m_board.hasMoves(cur)){
+        QString msg;
+        if(m_board.isInCheck(cur))
+            msg = (cur==ChessBoard::White)?"Black wins":"White wins";
+        else
+            msg = "Stalemate";
+        QMessageBox::information(this,"Game Over",msg);
         m_timer.stop();
         setCentralWidget(nullptr);
     }
