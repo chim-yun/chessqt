@@ -10,10 +10,7 @@
 #include <QRandomGenerator>
 #include <algorithm>
 #include <ranges>
-#include <QNetworkRequest>
-#include <QUrlQuery>
-#include <QJsonDocument>
-#include <QJsonObject>
+#include <QProcess>
 #include "boardview.h"
 
 MainWindow::MainWindow(const QString &user, QWidget *parent)
@@ -87,11 +84,6 @@ void MainWindow::startGame()
     connect(m_view, &BoardView::boardChanged, this, &MainWindow::onBoardChange);
     connect(m_view, &BoardView::highlightChanged, this, &MainWindow::setHighlight);
 
-    if(m_mode==VsAi){
-        if(!m_net){
-            m_net = new QNetworkAccessManager(this);
-        }
-    }
 }
 
 void MainWindow::updateTimer()
@@ -161,33 +153,37 @@ void MainWindow::setHighlight(const QVector<QPoint> &moves)
 
 void MainWindow::requestAiMove()
 {
-    if(!m_net) return;
-    QUrl url("https://stockfish.online/api/s/v2.php");
-    QUrlQuery query;
-    query.addQueryItem("fen", m_board.toFen());
-    query.addQueryItem("depth", "12");
-    url.setQuery(query);
-    QNetworkRequest req(url);
-    auto reply = m_net->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, reply](){ handleAiReply(reply); });
-}
-
-void MainWindow::handleAiReply(QNetworkReply *reply)
-{
-    QByteArray data = reply->readAll();
-    reply->deleteLater();
-    QJsonDocument doc = QJsonDocument::fromJson(data);
-    if(!doc.isObject()) return;
-    QString best = doc.object().value("bestmove").toString();
-    if(best.startsWith("bestmove"))
-        best = best.split(' ').value(1);
-    if(best.size() >= 4){
-        QString from = best.mid(0,2);
-        QString to = best.mid(2,2);
-        m_board.move(from,to);
-        m_view->clearSelection();
-        redrawBoard();
-        checkGameOver();
+    if(!m_engine){
+        m_engine = new QProcess(this);
+        m_engine->start("/usr/games/stockfish");
+        if(!m_engine->waitForStarted(2000)){
+            delete m_engine;
+            m_engine = nullptr;
+            return;
+        }
+        m_engine->write("uci\n");
+        m_engine->write("isready\n");
+        m_engine->waitForReadyRead(2000);
+    }
+    QString cmd = QString("position fen %1\n").arg(m_board.toFen());
+    m_engine->write(cmd.toUtf8());
+    m_engine->write("go depth 12\n");
+    if(!m_engine->waitForReadyRead(10000))
+        return;
+    while(m_engine->canReadLine()){
+        QByteArray line = m_engine->readLine();
+        if(line.startsWith("bestmove")){
+            QString best = QString::fromUtf8(line).split(' ').value(1);
+            if(best.size() >= 4){
+                QString from = best.mid(0,2);
+                QString to = best.mid(2,2);
+                m_board.move(from,to);
+                m_view->clearSelection();
+                redrawBoard();
+                checkGameOver();
+            }
+            break;
+        }
     }
 }
 
@@ -210,8 +206,6 @@ void MainWindow::showMenu()
     if(QWidget *old = centralWidget())
         old->deleteLater();
 
-    if(m_net)
-        m_net->disconnect(this);
     // keep widgets alive when replacing the central widget
     m_view->setParent(this);
     m_whiteLabel->setParent(this);
@@ -238,6 +232,11 @@ void MainWindow::endGame()
     disconnect(m_view, &BoardView::boardChanged, this, &MainWindow::onBoardChange);
     disconnect(m_view, &BoardView::highlightChanged, this, &MainWindow::setHighlight);
     m_highlight.clear();
+    if(m_engine){
+        m_engine->kill();
+        m_engine->deleteLater();
+        m_engine = nullptr;
+    }
     m_mode = Off;
     m_whiteLabel->setVisible(false);
     m_blackLabel->setVisible(false);
