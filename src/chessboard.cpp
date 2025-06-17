@@ -43,6 +43,7 @@ bool ChessBoard::move(const QString &from, const QString &to)
 {
     QVector<QPoint> moves = legalMoves(from);
     int tr,tc; strToPos(to,tr,tc);
+    // Use std::any_of with a lambda to check if the move is legal
     bool legal = std::any_of(moves.cbegin(), moves.cend(), [&](const QPoint &p){
         return p.x()==tr && p.y()==tc;
     });
@@ -269,6 +270,7 @@ bool ChessBoard::isInCheck(Color c) const
 bool ChessBoard::hasMoves(Color c) const
 {
     int idx = 0;
+    // Check if any piece of color c has legal moves using std::any_of
     return std::any_of(m_board.cbegin(), m_board.cend(), [&](Piece p) mutable {
         int r = idx / 8;
         int col = idx % 8;
@@ -289,6 +291,7 @@ QString ChessBoard::toFen() const
 
     struct FenAcc { QString fen; int empty = 0; int idx = 0; };
 
+    // Build the FEN string using std::accumulate with a lambda accumulator
     auto res = std::accumulate(m_board.begin(), m_board.end(), FenAcc{},
         [&](FenAcc a, Piece p){
             if(p==Empty){

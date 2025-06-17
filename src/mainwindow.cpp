@@ -116,6 +116,7 @@ void MainWindow::updateTimer()
 void MainWindow::redrawBoard()
 {
     m_scene->clear();
+    // Functional style: generate numbers 0..7 with a view and iterate using ranges
     auto rng = std::views::iota(0,8);
     std::ranges::for_each(rng, [&](int r){
         std::ranges::for_each(rng, [&](int c){
@@ -166,16 +167,19 @@ void MainWindow::setHighlight(const QVector<QPoint> &moves)
 
 void MainWindow::requestAiMove()
 {
-
+    // Ensure the Stockfish engine is running before sending commands
     startAiEngine();
     if(!m_ai || m_ai->state()!=QProcess::Running)
-
         return;
-    }
+
+    // Ask Stockfish for the best move from the current board position
     QByteArray cmd = "position fen " + m_board.toFen().toUtf8() + "\n";
     cmd += "go depth 12\n";
     m_ai->write(cmd);
-    connect(m_ai, &QProcess::readyReadStandardOutput, this, &MainWindow::handleAiOutput, Qt::UniqueConnection);
+
+    // When the engine responds, handle the move exactly once
+    connect(m_ai, &QProcess::readyReadStandardOutput, this,
+            &MainWindow::handleAiOutput, Qt::UniqueConnection);
 }
 
 void MainWindow::handleAiOutput()
@@ -256,7 +260,10 @@ void MainWindow::endGame()
 
 void MainWindow::updateTimerDisplay()
 {
-    auto format=[&](int t){ return QString("%1:%2").arg(t/60,2,10,QChar('0')).arg(t%60,2,10,QChar('0')); };
+    // Lambda expression to format time as mm:ss
+    auto format=[&](int t){
+        return QString("%1:%2").arg(t/60,2,10,QChar('0')).arg(t%60,2,10,QChar('0'));
+    };
     m_whiteLabel->setText("White: " + format(m_whiteTime));
     m_blackLabel->setText("Black: " + format(m_blackTime));
 }
