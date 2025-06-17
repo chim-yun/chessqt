@@ -26,10 +26,16 @@ add_custom_target(build_stockfish ALL
     COMMENT "Building Stockfish engine"
 )
 
+if(WIN32)
+    set(STOCKFISH_EXE stockfish.exe)
+else()
+    set(STOCKFISH_EXE stockfish)
+endif()
+
 add_custom_command(TARGET build_stockfish POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_SOURCE_DIR}/stockfish/engine/src/stockfish
-            ${CMAKE_CURRENT_SOURCE_DIR}/stockfish/engine/stockfish
+            ${CMAKE_CURRENT_SOURCE_DIR}/stockfish/engine/src/${STOCKFISH_EXE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/stockfish/engine/${STOCKFISH_EXE}
 )
 
 add_subdirectory(src)
