@@ -30,6 +30,10 @@ private slots:
     void checkGameOver();
 
 private:
+    void showMenu();
+    void endGame();
+
+private:
     enum Mode { Off, Offline, VsAi };
     Mode m_mode = Off;
     QString m_player;
