@@ -79,6 +79,8 @@ void MainWindow::startGame()
     layout->addWidget(m_resignBtn);
     setCentralWidget(central);
     m_view->show();
+    m_view->setVsAiMode(m_mode==VsAi);
+    m_view->setPlayerColor(m_playerColor);
     redrawBoard();
 
     m_whiteLabel->setVisible(true);
