@@ -201,6 +201,7 @@ void MainWindow::checkGameOver()
 
 void MainWindow::showMenu()
 {
+
     // keep widgets alive when replacing the central widget
     m_view->setParent(this);
     m_whiteLabel->setParent(this);
