@@ -20,6 +20,7 @@ private slots:
     void startGame();
     void chooseVsAi();
     void chooseOffline();
+    void showMenu();
     void updateTimer();
     void redrawBoard();
     void setHighlight(const QVector<QPoint> &moves);
@@ -41,6 +42,7 @@ private:
     ChessBoard::Color m_playerColor = ChessBoard::White;
     int m_whiteTime = 600; // 10 minutes
     int m_blackTime = 600;
+    QWidget *m_menu = nullptr;
 };
 
 #endif // MAINWINDOW_H

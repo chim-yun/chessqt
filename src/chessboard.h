@@ -16,6 +16,8 @@ public:
     void reset();
     bool move(const QString &from, const QString &to);
     QVector<QPoint> legalMoves(const QString &from) const;
+    bool isInCheck(Color c) const;
+    bool hasMoves(Color c) const;
     Piece pieceAt(int row, int col) const { return m_board[row*8+col]; }
     Color currentColor() const { return m_turn; }
     Color pieceColor(Piece p) const;
@@ -26,6 +28,15 @@ private:
     Board m_board;
     Color m_turn = White;
     QVector<QString> m_history;
+    bool m_whiteKingMoved = false;
+    bool m_blackKingMoved = false;
+    bool m_whiteLeftRookMoved = false;
+    bool m_whiteRightRookMoved = false;
+    bool m_blackLeftRookMoved = false;
+    bool m_blackRightRookMoved = false;
+    QPoint m_enPassant{-1,-1};
+
+    bool isSquareAttacked(int r,int c,Color by) const;
 };
 
 #endif // CHESSBOARD_H

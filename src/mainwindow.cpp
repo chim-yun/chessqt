@@ -6,19 +6,20 @@
 #include <QGraphicsRectItem>
 #include <QPixmap>
 #include <QRandomGenerator>
+#include <QStatusBar>
 #include "boardview.h"
 
 MainWindow::MainWindow(const QString &user, QWidget *parent)
     : QMainWindow(parent), m_player(user)
 {
     setWindowTitle("Chess - " + user);
-    auto *central = new QWidget(this);
-    auto *layout = new QVBoxLayout(central);
+    m_menu = new QWidget(this);
+    auto *layout = new QVBoxLayout(m_menu);
     auto *playOffline = new QPushButton("Offline 2 Players", this);
     auto *playAi = new QPushButton("Play vs AI", this);
     layout->addWidget(playOffline);
     layout->addWidget(playAi);
-    setCentralWidget(central);
+    setCentralWidget(m_menu);
 
     connect(playOffline, &QPushButton::clicked, this, &MainWindow::chooseOffline);
     connect(playAi, &QPushButton::clicked, this, &MainWindow::chooseVsAi);
@@ -61,6 +62,8 @@ void MainWindow::startGame()
     setCentralWidget(m_view);
     redrawBoard();
 
+    statusBar()->showMessage("White 10:00  Black 10:00");
+
     m_timer.start(1000);
     connect(&m_timer, &QTimer::timeout, this, &MainWindow::updateTimer);
     connect(m_view, &BoardView::boardChanged, this, &MainWindow::onBoardChange);
@@ -79,17 +82,29 @@ void MainWindow::startGame()
     }
 }
 
+void MainWindow::showMenu()
+{
+    m_timer.stop();
+    disconnect(&m_timer, &QTimer::timeout, this, &MainWindow::updateTimer);
+    disconnect(m_view, &BoardView::boardChanged, this, &MainWindow::onBoardChange);
+    disconnect(m_view, &BoardView::highlightChanged, this, &MainWindow::setHighlight);
+    statusBar()->clearMessage();
+    setCentralWidget(m_menu);
+}
+
 void MainWindow::updateTimer()
 {
     if (m_board.currentColor()==ChessBoard::White)
         --m_whiteTime;
     else
         --m_blackTime;
+
+    auto fmt=[&](int t){return QString("%1:%2").arg(t/60,2,10,QChar('0')).arg(t%60,2,10,QChar('0'));};
+    statusBar()->showMessage(QString("White %1  Black %2").arg(fmt(m_whiteTime)).arg(fmt(m_blackTime)));
+
     if (m_whiteTime<=0 || m_blackTime<=0) {
         QMessageBox::information(this, "Time", m_whiteTime<=0?"Black wins":"White wins");
-        m_timer.stop();
-        disconnect(&m_timer, &QTimer::timeout, this, &MainWindow::updateTimer);
-        return;
+        showMenu();
     }
 }
 
@@ -173,16 +188,14 @@ void MainWindow::readAiMove()
 
 void MainWindow::checkGameOver()
 {
-    bool w=false,b=false;
-    for(int r=0;r<8;++r)
-        for(int c=0;c<8;++c){
-            ChessBoard::Piece p=m_board.pieceAt(r,c);
-            if(p==ChessBoard::WK) w=true;
-            if(p==ChessBoard::BK) b=true;
-        }
-    if(!w||!b){
-        QMessageBox::information(this,"Game Over",!w?"Black wins":"White wins");
-        m_timer.stop();
-        setCentralWidget(nullptr);
+    ChessBoard::Color cur = m_board.currentColor();
+    if(!m_board.hasMoves(cur)){
+        QString msg;
+        if(m_board.isInCheck(cur))
+            msg = (cur==ChessBoard::White)?"Black wins":"White wins";
+        else
+            msg = "Stalemate";
+        QMessageBox::information(this,"Game Over",msg);
+        showMenu();
     }
 }
