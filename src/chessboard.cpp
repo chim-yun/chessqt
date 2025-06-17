@@ -1,6 +1,7 @@
 #include "chessboard.h"
 #include "utils.h"
 #include <numeric>
+#include <algorithm>
 
 ChessBoard::ChessBoard()
 {
@@ -9,8 +10,7 @@ ChessBoard::ChessBoard()
 
 void ChessBoard::reset()
 {
-    m_board.fill(Empty);
-    const Piece init[64] = {
+    static constexpr Board init{{
         BR, BN, BB, BQ, BK, BB, BN, BR,
         BP, BP, BP, BP, BP, BP, BP, BP,
         Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty,
@@ -19,9 +19,8 @@ void ChessBoard::reset()
         Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty,
         WP, WP, WP, WP, WP, WP, WP, WP,
         WR, WN, WB, WQ, WK, WB, WN, WR
-    };
-    for (int i=0;i<64;++i)
-        m_board[i]=init[i];
+    }};
+    m_board = init;
     m_turn = White;
     m_history.clear();
     m_whiteKingMoved = false;
@@ -220,27 +219,30 @@ bool ChessBoard::isSquareAttacked(int r,int c,Color by) const
 
 bool ChessBoard::isInCheck(Color c) const
 {
-    for(int r=0;r<8;++r)
-        for(int col=0;col<8;++col){
-            Piece p = pieceAt(r,col);
-            if(p==(c==White?WK:BK))
-                return isSquareAttacked(r,col,c==White?Black:White);
-        }
-    return false;
+    auto it = std::find_if(m_board.cbegin(), m_board.cend(), [&](Piece p){
+        return p == (c==White?WK:BK);
+    });
+    if(it == m_board.cend())
+        return false;
+    int idx = std::distance(m_board.cbegin(), it);
+    int r = idx / 8;
+    int col = idx % 8;
+    return isSquareAttacked(r, col, c==White?Black:White);
 }
 
 bool ChessBoard::hasMoves(Color c) const
 {
-    for(int r=0;r<8;++r)
-        for(int col=0;col<8;++col){
-            Piece p=pieceAt(r,col);
-            if(p!=Empty && pieceColor(p)==c){
-                QString pos = QString("%1%2").arg(QChar('a'+col)).arg(8-r);
-                if(!legalMoves(pos).isEmpty())
-                    return true;
-            }
+    int idx = 0;
+    return std::any_of(m_board.cbegin(), m_board.cend(), [&](Piece p) mutable {
+        int r = idx / 8;
+        int col = idx % 8;
+        ++idx;
+        if(p!=Empty && pieceColor(p)==c){
+            QString pos = QString("%1%2").arg(QChar('a'+col)).arg(8-r);
+            return !legalMoves(pos).isEmpty();
         }
-    return false;
+        return false;
+    });
 }
 
 QString ChessBoard::toFen() const

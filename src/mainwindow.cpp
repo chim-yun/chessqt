@@ -8,6 +8,7 @@
 #include <QPixmap>
 #include <QLabel>
 #include <QRandomGenerator>
+#include <algorithm>
 #include <QNetworkRequest>
 #include <QUrlQuery>
 #include <QJsonDocument>
@@ -112,7 +113,8 @@ void MainWindow::redrawBoard()
     for (int r=0;r<8;++r) {
         for (int c=0;c<8;++c) {
             QBrush brush = ((r+c)%2)?QBrush(Qt::gray):QBrush(Qt::white);
-            for(const QPoint &p : m_highlight){ if(p.x()==r && p.y()==c){ brush = QBrush(Qt::yellow); break; } }
+            if(std::any_of(m_highlight.cbegin(), m_highlight.cend(), [&](const QPoint &p){ return p.x()==r && p.y()==c; }))
+                brush = QBrush(Qt::yellow);
             m_scene->addRect(c*50,r*50,50,50,QPen(),brush);
             ChessBoard::Piece p = m_board.pieceAt(r,c);
             if (p!=ChessBoard::Empty) {
