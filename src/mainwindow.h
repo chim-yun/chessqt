@@ -9,6 +9,7 @@
 #include <QNetworkReply>
 #include <QVector>
 #include <QPoint>
+#include <QLabel>
 #include "chessboard.h"
 
 class MainWindow : public QMainWindow
@@ -32,6 +33,7 @@ private slots:
 private:
     void showMenu();
     void endGame();
+    void updateTimerDisplay();
 
 private:
     enum Mode { Off, Offline, VsAi };
@@ -47,6 +49,8 @@ private:
     ChessBoard::Color m_playerColor = ChessBoard::White;
     int m_whiteTime = 600; // 10 minutes
     int m_blackTime = 600;
+    QLabel *m_whiteLabel = nullptr;
+    QLabel *m_blackLabel = nullptr;
 
 public:
     bool backToLoginRequested() const { return m_backToLogin; }
