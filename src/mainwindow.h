@@ -36,6 +36,7 @@ private:
     void showMenu();
     void endGame();
     void updateTimerDisplay();
+    void startAiEngine();
 
 private:
     enum Mode { Off, Offline, VsAi };
