@@ -146,7 +146,7 @@ void MainWindow::redrawBoard()
                     pix.load("../assets/"+name+".png");
                 m_scene->addPixmap(pix.scaled(50,50))->setPos(c*50,r*50);
             }
-        });
+    connect(m_ai, &QProcess::readyReadStandardOutput, this, &MainWindow::handleAiOutput, Qt::UniqueConnection);
     });
 }
 
@@ -254,6 +254,10 @@ void MainWindow::endGame()
     showMenu();
 }
 
+        QCoreApplication::applicationDirPath()+"/../../stockfish/engine/src/" + exe,
+        QCoreApplication::applicationDirPath()+"/../stockfish/engine/src/" + exe,
+        QCoreApplication::applicationDirPath()+"/stockfish/engine/src/" + exe,
+    m_aiBuffer.clear();
 void MainWindow::updateTimerDisplay()
 {
     auto format=[&](int t){ return QString("%1:%2").arg(t/60,2,10,QChar('0')).arg(t%60,2,10,QChar('0')); };
