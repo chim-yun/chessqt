@@ -5,8 +5,7 @@
 #include "boardview.h"
 #include <QGraphicsScene>
 #include <QTimer>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
+#include <QProcess>
 #include <QVector>
 #include <QPoint>
 #include <QLabel>
@@ -26,7 +25,7 @@ private slots:
     void redrawBoard();
     void setHighlight(const QVector<QPoint> &moves);
     void requestAiMove();
-    void handleAiReply(QNetworkReply *reply);
+    void handleEngineOutput();
     void onBoardChange();
     void checkGameOver();
 
@@ -44,7 +43,7 @@ private:
     QGraphicsScene *m_scene;
     QTimer m_timer;
     QVector<QPoint> m_highlight;
-    QNetworkAccessManager *m_net = nullptr;
+    QProcess *m_engine = nullptr;
     bool m_backToLogin = false;
     ChessBoard::Color m_playerColor = ChessBoard::White;
     int m_whiteTime = 600; // 10 minutes
