@@ -120,6 +120,8 @@ void MainWindow::redrawBoard()
                 default: break;
                 }
                 QPixmap pix(":/images/"+name+".png");
+                if(pix.isNull())
+                    pix.load("../assets/"+name+".png");
                 m_scene->addPixmap(pix.scaled(50,50))->setPos(c*50,r*50);
             }
         }
