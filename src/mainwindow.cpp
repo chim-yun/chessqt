@@ -16,20 +16,11 @@ MainWindow::MainWindow(const QString &user, QWidget *parent)
     : QMainWindow(parent), m_player(user)
 {
     setWindowTitle("Chess - " + user);
-    auto *central = new QWidget(this);
-    auto *layout = new QVBoxLayout(central);
-    auto *playOffline = new QPushButton("Offline 2 Players", this);
-    auto *playAi = new QPushButton("Play vs AI", this);
-    layout->addWidget(playOffline);
-    layout->addWidget(playAi);
-    setCentralWidget(central);
-
-    connect(playOffline, &QPushButton::clicked, this, &MainWindow::chooseOffline);
-    connect(playAi, &QPushButton::clicked, this, &MainWindow::chooseVsAi);
-
     m_scene = new QGraphicsScene(this);
     m_view = new BoardView(m_scene, &m_board, this);
     m_scene->setSceneRect(0,0,400,400);
+
+    showMenu();
 }
 
 void MainWindow::chooseOffline()
@@ -85,10 +76,7 @@ void MainWindow::updateTimer()
         --m_blackTime;
     if (m_whiteTime<=0 || m_blackTime<=0) {
         QMessageBox::information(this, "Time", m_whiteTime<=0?"Black wins":"White wins");
-        m_timer.stop();
-        disconnect(&m_timer, &QTimer::timeout, this, &MainWindow::updateTimer);
-        m_backToLogin = true;
-        close();
+        endGame();
         return;
     }
 }
@@ -183,9 +171,31 @@ void MainWindow::checkGameOver()
         else
             msg = "Stalemate";
         QMessageBox::information(this,"Game Over",msg);
-        m_timer.stop();
-        setCentralWidget(nullptr);
-        m_backToLogin = true;
-        close();
+        endGame();
     }
+}
+
+void MainWindow::showMenu()
+{
+    auto *central = new QWidget(this);
+    auto *layout = new QVBoxLayout(central);
+    auto *playOffline = new QPushButton("Offline 2 Players", this);
+    auto *playAi = new QPushButton("Play vs AI", this);
+    layout->addWidget(playOffline);
+    layout->addWidget(playAi);
+    setCentralWidget(central);
+
+    connect(playOffline, &QPushButton::clicked, this, &MainWindow::chooseOffline);
+    connect(playAi, &QPushButton::clicked, this, &MainWindow::chooseVsAi);
+}
+
+void MainWindow::endGame()
+{
+    m_timer.stop();
+    disconnect(&m_timer, &QTimer::timeout, this, &MainWindow::updateTimer);
+    disconnect(m_view, &BoardView::boardChanged, this, &MainWindow::onBoardChange);
+    disconnect(m_view, &BoardView::highlightChanged, this, &MainWindow::setHighlight);
+    m_highlight.clear();
+    m_mode = Off;
+    showMenu();
 }
