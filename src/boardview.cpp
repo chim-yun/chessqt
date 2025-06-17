@@ -17,14 +17,28 @@ void BoardView::mousePressEvent(QMouseEvent *event)
     QString coord = posToStr(r,c);
     if (m_selected.isEmpty()) {
         ChessBoard::Piece p = m_board->pieceAt(r,c);
-        if (p!=ChessBoard::Empty)
+        if (p!=ChessBoard::Empty && m_board->pieceColor(p)==m_board->currentColor()) {
             m_selected = coord;
+            m_moves = m_board->legalMoves(coord);
+            emit highlightChanged(m_moves);
+        }
     } else {
         if (m_board->move(m_selected, coord)) {
             m_selected.clear();
+            m_moves.clear();
             emit boardChanged();
+            emit highlightChanged({});
         } else {
             m_selected.clear();
+            m_moves.clear();
+            emit highlightChanged({});
         }
     }
+}
+
+void BoardView::clearSelection()
+{
+    m_selected.clear();
+    m_moves.clear();
+    emit highlightChanged({});
 }

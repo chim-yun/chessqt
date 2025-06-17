@@ -5,6 +5,7 @@
 #include <QInputDialog>
 #include <QGraphicsRectItem>
 #include <QPixmap>
+#include <QRandomGenerator>
 #include "boardview.h"
 
 MainWindow::MainWindow(const QString &user, QWidget *parent)
@@ -35,8 +36,18 @@ void MainWindow::chooseOffline()
 
 void MainWindow::chooseVsAi()
 {
+    QStringList opts{"White","Black","Random"};
+    bool ok=false;
+    QString choice = QInputDialog::getItem(this,"Play vs AI","Select side",opts,0,false,&ok);
+    if(!ok) return;
+    if(choice=="Random")
+        m_playerColor = (QRandomGenerator::global()->bounded(2)==0)?ChessBoard::White:ChessBoard::Black;
+    else
+        m_playerColor = (choice=="White")?ChessBoard::White:ChessBoard::Black;
     m_mode = VsAi;
     startGame();
+    if(m_playerColor==ChessBoard::Black)
+        requestAiMove();
 }
 
 void MainWindow::startGame()
@@ -44,6 +55,7 @@ void MainWindow::startGame()
     m_whiteTime = 600;
     m_blackTime = 600;
     m_board.reset();
+    m_highlight.clear();
 
     m_scene->clear();
     setCentralWidget(m_view);
@@ -51,7 +63,20 @@ void MainWindow::startGame()
 
     m_timer.start(1000);
     connect(&m_timer, &QTimer::timeout, this, &MainWindow::updateTimer);
-    connect(m_view, &BoardView::boardChanged, this, &MainWindow::redrawBoard);
+    connect(m_view, &BoardView::boardChanged, this, &MainWindow::onBoardChange);
+    connect(m_view, &BoardView::highlightChanged, this, &MainWindow::setHighlight);
+
+    if(m_mode==VsAi){
+        if(!m_engine){
+            m_engine = new QProcess(this);
+            m_engine->start("stockfish");
+            m_engine->write("uci\n");
+            m_engine->write("isready\n");
+            m_engine->waitForReadyRead(3000);
+            m_engine->readAll();
+            connect(m_engine,&QProcess::readyRead,this,&MainWindow::readAiMove);
+        }
+    }
 }
 
 void MainWindow::updateTimer()
@@ -73,7 +98,9 @@ void MainWindow::redrawBoard()
     m_scene->clear();
     for (int r=0;r<8;++r) {
         for (int c=0;c<8;++c) {
-            m_scene->addRect(c*50,r*50,50,50,QPen(),(r+c)%2?QBrush(Qt::gray):QBrush(Qt::white));
+            QBrush brush = ((r+c)%2)?QBrush(Qt::gray):QBrush(Qt::white);
+            for(const QPoint &p : m_highlight){ if(p.x()==r && p.y()==c){ brush = QBrush(Qt::yellow); break; } }
+            m_scene->addRect(c*50,r*50,50,50,QPen(),brush);
             ChessBoard::Piece p = m_board.pieceAt(r,c);
             if (p!=ChessBoard::Empty) {
                 QString name;
@@ -96,5 +123,64 @@ void MainWindow::redrawBoard()
                 m_scene->addPixmap(pix.scaled(50,50))->setPos(c*50,r*50);
             }
         }
+    }
+}
+
+void MainWindow::onBoardChange()
+{
+    redrawBoard();
+    checkGameOver();
+    if(m_mode==VsAi && m_board.currentColor()!=m_playerColor)
+        requestAiMove();
+}
+
+void MainWindow::setHighlight(const QVector<QPoint> &moves)
+{
+    m_highlight = moves;
+    redrawBoard();
+}
+
+void MainWindow::requestAiMove()
+{
+    if(!m_engine) return;
+    QString cmd = "position startpos";
+    auto hist = m_board.history();
+    if(!hist.isEmpty())
+        cmd += " moves " + hist.join(' ');
+    m_engine->write(cmd.toUtf8()+"\n");
+    m_engine->write("go movetime 1000\n");
+}
+
+void MainWindow::readAiMove()
+{
+    while(m_engine->canReadLine()){
+        QByteArray line = m_engine->readLine();
+        if(line.startsWith("bestmove")){
+            QList<QByteArray> parts = line.split(' ');
+            if(parts.size()>=2){
+                QString mv = parts[1];
+                QString from = mv.mid(0,2);
+                QString to = mv.mid(2,2);
+                m_board.move(from,to);
+                m_view->clearSelection();
+                redrawBoard();
+            }
+        }
+    }
+}
+
+void MainWindow::checkGameOver()
+{
+    bool w=false,b=false;
+    for(int r=0;r<8;++r)
+        for(int c=0;c<8;++c){
+            ChessBoard::Piece p=m_board.pieceAt(r,c);
+            if(p==ChessBoard::WK) w=true;
+            if(p==ChessBoard::BK) b=true;
+        }
+    if(!w||!b){
+        QMessageBox::information(this,"Game Over",!w?"Black wins":"White wins");
+        m_timer.stop();
+        setCentralWidget(nullptr);
     }
 }

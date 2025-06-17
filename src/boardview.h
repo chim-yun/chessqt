@@ -2,6 +2,7 @@
 #define BOARDVIEW_H
 
 #include <QGraphicsView>
+#include <QVector>
 #include "chessboard.h"
 
 class BoardView : public QGraphicsView
@@ -12,13 +13,18 @@ public:
 
 signals:
     void boardChanged();
+    void highlightChanged(const QVector<QPoint> &moves);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
 
+public:
+    void clearSelection();
+
 private:
     ChessBoard *m_board;
     QString m_selected;
+    QVector<QPoint> m_moves;
 };
 
 #endif // BOARDVIEW_H
