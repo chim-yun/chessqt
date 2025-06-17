@@ -123,6 +123,10 @@ void MainWindow::startGame()
                 m_ai->write("isready\n");
                 m_ai->waitForReadyRead(1000);
                 m_ai->readAll();
+            }else{
+                QMessageBox::warning(this, "AI", "Failed to start Stockfish at " + prog);
+                delete m_ai;
+                m_ai = nullptr;
             }
         }
     }
@@ -196,8 +200,10 @@ void MainWindow::setHighlight(const QVector<QPoint> &moves)
 
 void MainWindow::requestAiMove()
 {
-    if(!m_ai || m_ai->state()!=QProcess::Running)
+    if(!m_ai || m_ai->state()!=QProcess::Running){
+        QMessageBox::warning(this, "AI", "Stockfish engine not running");
         return;
+    }
     QByteArray cmd = "position fen " + m_board.toFen().toUtf8() + "\n";
     cmd += "go depth 12\n";
     m_ai->write(cmd);
