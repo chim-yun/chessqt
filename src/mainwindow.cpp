@@ -61,6 +61,8 @@ void MainWindow::startGame()
 
     m_scene->clear();
 
+    if(QWidget *old = centralWidget())
+        old->deleteLater();
     auto *central = new QWidget(this);
     auto *layout = new QVBoxLayout(central);
     layout->setContentsMargins(0,0,0,0);
@@ -201,7 +203,11 @@ void MainWindow::checkGameOver()
 
 void MainWindow::showMenu()
 {
+    if(QWidget *old = centralWidget())
+        old->deleteLater();
 
+    if(m_net)
+        m_net->disconnect(this);
     // keep widgets alive when replacing the central widget
     m_view->setParent(this);
     m_whiteLabel->setParent(this);
