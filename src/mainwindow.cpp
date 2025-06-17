@@ -79,6 +79,8 @@ void MainWindow::startGame()
     layout->addWidget(m_resignBtn);
     setCentralWidget(central);
     m_view->show();
+    m_view->setVsAiMode(m_mode==VsAi);
+    m_view->setPlayerColor(m_playerColor);
     redrawBoard();
 
     m_whiteLabel->setVisible(true);
@@ -99,10 +101,20 @@ void MainWindow::startGame()
 #else
             const QString exe = "stockfish";
 #endif
-            QString prog = QCoreApplication::applicationDirPath()+"/../stockfish/engine/" + exe;
-            if(!QFile::exists(prog))
-                prog = QCoreApplication::applicationDirPath()+"/stockfish/engine/" + exe;
-            if(!QFile::exists(prog))
+            QStringList searchPaths{
+                QCoreApplication::applicationDirPath()+"/../../stockfish/engine/" + exe,
+                QCoreApplication::applicationDirPath()+"/../stockfish/engine/" + exe,
+                QCoreApplication::applicationDirPath()+"/stockfish/engine/" + exe,
+                exe
+            };
+            QString prog;
+            for(const QString &p : searchPaths){
+                if(QFile::exists(p)){
+                    prog = p;
+                    break;
+                }
+            }
+            if(prog.isEmpty())
                 prog = exe;
             m_ai->setProgram(prog);
             m_ai->start();
