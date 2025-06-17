@@ -94,11 +94,26 @@ void MainWindow::startGame()
     if(m_mode==VsAi){
         if(!m_ai){
             m_ai = new QProcess(this);
-            QString prog = QCoreApplication::applicationDirPath()+"/../stockfish/engine/stockfish";
-            if(!QFile::exists(prog))
-                prog = QCoreApplication::applicationDirPath()+"/stockfish/engine/stockfish";
-            if(!QFile::exists(prog))
-                prog = "stockfish";
+#ifdef Q_OS_WIN
+            const QString exe = "stockfish.exe";
+#else
+            const QString exe = "stockfish";
+#endif
+            QStringList searchPaths{
+                QCoreApplication::applicationDirPath()+"/../../stockfish/engine/" + exe,
+                QCoreApplication::applicationDirPath()+"/../stockfish/engine/" + exe,
+                QCoreApplication::applicationDirPath()+"/stockfish/engine/" + exe,
+                exe
+            };
+            QString prog;
+            for(const QString &p : searchPaths){
+                if(QFile::exists(p)){
+                    prog = p;
+                    break;
+                }
+            }
+            if(prog.isEmpty())
+                prog = exe;
             m_ai->setProgram(prog);
             m_ai->start();
             if(m_ai->waitForStarted(1000)){
