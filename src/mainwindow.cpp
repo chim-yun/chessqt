@@ -93,43 +93,9 @@ void MainWindow::startGame()
     connect(m_view, &BoardView::boardChanged, this, &MainWindow::onBoardChange);
     connect(m_view, &BoardView::highlightChanged, this, &MainWindow::setHighlight);
 
-    if(m_mode==VsAi){
-        if(!m_ai){
-            m_ai = new QProcess(this);
-#ifdef Q_OS_WIN
-            const QString exe = "stockfish.exe";
-#else
-            const QString exe = "stockfish";
-#endif
-            QStringList searchPaths{
-                QCoreApplication::applicationDirPath()+"/../../stockfish/engine/" + exe,
-                QCoreApplication::applicationDirPath()+"/../stockfish/engine/" + exe,
-                QCoreApplication::applicationDirPath()+"/stockfish/engine/" + exe,
-                exe
-            };
-            QString prog;
-            for(const QString &p : searchPaths){
-                if(QFile::exists(p)){
-                    prog = p;
-                    break;
-                }
-            }
-            if(prog.isEmpty())
-                prog = exe;
-            m_ai->setProgram(prog);
-            m_ai->start();
-            if(m_ai->waitForStarted(1000)){
-                m_ai->write("uci\n");
-                m_ai->write("isready\n");
-                m_ai->waitForReadyRead(1000);
-                m_ai->readAll();
-            }else{
-                QMessageBox::warning(this, "AI", "Failed to start Stockfish at " + prog);
-                delete m_ai;
-                m_ai = nullptr;
-            }
-        }
-    }
+
+    if(m_mode==VsAi)
+        startAiEngine();
 
 }
 
@@ -200,8 +166,10 @@ void MainWindow::setHighlight(const QVector<QPoint> &moves)
 
 void MainWindow::requestAiMove()
 {
-    if(!m_ai || m_ai->state()!=QProcess::Running){
-        QMessageBox::warning(this, "AI", "Stockfish engine not running");
+
+    startAiEngine();
+    if(!m_ai || m_ai->state()!=QProcess::Running)
+
         return;
     }
     QByteArray cmd = "position fen " + m_board.toFen().toUtf8() + "\n";
@@ -291,6 +259,51 @@ void MainWindow::updateTimerDisplay()
     auto format=[&](int t){ return QString("%1:%2").arg(t/60,2,10,QChar('0')).arg(t%60,2,10,QChar('0')); };
     m_whiteLabel->setText("White: " + format(m_whiteTime));
     m_blackLabel->setText("Black: " + format(m_blackTime));
+}
+
+void MainWindow::startAiEngine()
+{
+    if(m_ai && m_ai->state()==QProcess::Running)
+        return;
+
+    if(m_ai){
+        delete m_ai;
+        m_ai = nullptr;
+    }
+
+    m_ai = new QProcess(this);
+#ifdef Q_OS_WIN
+    const QString exe = "stockfish.exe";
+#else
+    const QString exe = "stockfish";
+#endif
+    QStringList searchPaths{
+        QCoreApplication::applicationDirPath()+"/../../stockfish/engine/" + exe,
+        QCoreApplication::applicationDirPath()+"/../stockfish/engine/" + exe,
+        QCoreApplication::applicationDirPath()+"/stockfish/engine/" + exe,
+        exe
+    };
+    QString prog;
+    for(const QString &p : searchPaths){
+        if(QFile::exists(p)){
+            prog = p;
+            break;
+        }
+    }
+    if(prog.isEmpty())
+        prog = exe;
+    m_ai->setProgram(prog);
+    m_ai->start();
+    if(m_ai->waitForStarted(1000)){
+        m_ai->write("uci\n");
+        m_ai->write("isready\n");
+        m_ai->waitForReadyRead(1000);
+        m_ai->readAll();
+    }else{
+        QMessageBox::warning(this, "AI", "Failed to start Stockfish at " + prog);
+        delete m_ai;
+        m_ai = nullptr;
+    }
 }
 
 void MainWindow::resignGame()
