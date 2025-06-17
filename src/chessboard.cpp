@@ -1,5 +1,6 @@
 #include "chessboard.h"
 #include "utils.h"
+#include <numeric>
 
 ChessBoard::ChessBoard()
 {
@@ -244,39 +245,29 @@ bool ChessBoard::hasMoves(Color c) const
 
 QString ChessBoard::toFen() const
 {
-    auto pieceChar=[&](Piece p){
-        switch(p){
-        case WP: return 'P';
-        case WR: return 'R';
-        case WN: return 'N';
-        case WB: return 'B';
-        case WQ: return 'Q';
-        case WK: return 'K';
-        case BP: return 'p';
-        case BR: return 'r';
-        case BN: return 'n';
-        case BB: return 'b';
-        case BQ: return 'q';
-        case BK: return 'k';
-        default: return '1';
-        }
-    };
+    static const std::array<char, 13> pieceChars{{
+        '1','P','R','N','B','Q','K','p','r','n','b','q','k'
+    }};
 
-    QString fen;
-    for(int r=0;r<8;++r){
-        int empty=0;
-        for(int c=0;c<8;++c){
-            Piece p = pieceAt(r,c);
+    struct FenAcc { QString fen; int empty = 0; int idx = 0; };
+
+    auto res = std::accumulate(m_board.begin(), m_board.end(), FenAcc{},
+        [&](FenAcc a, Piece p){
             if(p==Empty){
-                ++empty;
+                ++a.empty;
             }else{
-                if(empty>0){ fen+=QString::number(empty); empty=0; }
-                fen+=pieceChar(p);
+                if(a.empty>0){ a.fen += QString::number(a.empty); a.empty = 0; }
+                a.fen += pieceChars[static_cast<int>(p)];
             }
-        }
-        if(empty>0) fen+=QString::number(empty);
-        if(r!=7) fen+='/';
-    }
+            ++a.idx;
+            if(a.idx % 8 == 0){
+                if(a.empty>0){ a.fen += QString::number(a.empty); a.empty = 0; }
+                if(a.idx != 64) a.fen += '/';
+            }
+            return a;
+        });
+
+    QString fen = res.fen;
     fen+=' ';
     fen+=(m_turn==White?'w':'b');
     fen+=' ';
