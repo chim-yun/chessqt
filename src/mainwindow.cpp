@@ -211,6 +211,7 @@ void MainWindow::showMenu()
     if(QWidget *old = centralWidget())
         old->deleteLater();
 
+
     if(m_engine)
         m_engine->disconnect(this);
 
