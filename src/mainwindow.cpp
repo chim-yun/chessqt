@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QPushButton>
 #include <QMessageBox>
 #include <QInputDialog>
@@ -23,8 +24,6 @@ MainWindow::MainWindow(const QString &user, QWidget *parent)
 
     m_whiteLabel = new QLabel(this);
     m_blackLabel = new QLabel(this);
-    statusBar()->addPermanentWidget(m_whiteLabel);
-    statusBar()->addPermanentWidget(m_blackLabel);
     m_whiteLabel->setVisible(false);
     m_blackLabel->setVisible(false);
 
@@ -61,7 +60,17 @@ void MainWindow::startGame()
     m_highlight.clear();
 
     m_scene->clear();
-    setCentralWidget(m_view);
+
+    auto *central = new QWidget(this);
+    auto *layout = new QVBoxLayout(central);
+    layout->setContentsMargins(0,0,0,0);
+    layout->addWidget(m_view);
+    auto *timerLayout = new QHBoxLayout();
+    timerLayout->addWidget(m_whiteLabel);
+    timerLayout->addStretch();
+    timerLayout->addWidget(m_blackLabel);
+    layout->addLayout(timerLayout);
+    setCentralWidget(central);
     redrawBoard();
 
     m_whiteLabel->setVisible(true);
