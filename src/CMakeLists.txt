@@ -15,6 +15,6 @@ add_executable(chessqt
     resources.qrc
 )
 
-target_link_libraries(chessqt PRIVATE Qt6::Widgets Qt6::Sql Qt6::Core)
+target_link_libraries(chessqt PRIVATE Qt6::Widgets Qt6::Sql Qt6::Core Qt6::Network)
 
 install(TARGETS chessqt RUNTIME DESTINATION bin)
