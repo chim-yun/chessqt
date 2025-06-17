@@ -6,8 +6,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets Sql Core)
 
+# Build the bundled Stockfish engine. We cannot rely on ${CMAKE_MAKE_PROGRAM}
+# here, because the main project might use Ninja while the engine ships with a
+# traditional Makefile. Call make explicitly instead.
 add_custom_target(build_stockfish ALL
-    COMMAND ${CMAKE_MAKE_PROGRAM} build
+    COMMAND make build
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/stockfish/engine/src
     COMMENT "Building Stockfish engine"
 )
